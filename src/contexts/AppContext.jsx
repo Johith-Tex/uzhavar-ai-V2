@@ -1,11 +1,9 @@
 // src/contexts/AppContext.jsx
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { signInAnon, onAuthChange, saveChatMessage, getChatHistory, logSession } from '../services/firebase';
+import { createContext, useContext, useState, useCallback } from 'react';
 
 const AppContext = createContext(null);
 
 export const AppProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
   const [language, setLanguage] = useState(() => localStorage.getItem('uzhavar_lang') || 'ta');
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -18,19 +16,6 @@ export const AppProvider = ({ children }) => {
   const [voiceMode, setVoiceMode] = useState(true); // Full voice-first mode by default
   const [weatherData, setWeatherData] = useState(null);
   const [sessionStart] = useState(Date.now());
-
-  useEffect(() => {
-    const unsub = onAuthChange(async (u) => {
-      if (u) {
-        setUser(u);
-        const history = await getChatHistory(u.uid, 30);
-        if (history.length > 0) setMessages(history);
-      } else {
-        try { await signInAnon(); } catch (err) { console.warn('Auth failed, offline mode'); }
-      }
-    });
-    return unsub;
-  }, []);
 
   const changeLanguage = useCallback((lang) => {
     setLanguage(lang);
@@ -60,27 +45,14 @@ export const AppProvider = ({ children }) => {
       }
       return [...prev, newMsg];
     });
-    if (user && !newMsg.streaming) saveChatMessage(user.uid, newMsg);
     return newMsg;
-  }, [user]);
+  }, []);
 
   const clearMessages = useCallback(() => setMessages([]), []);
 
-  useEffect(() => {
-    return () => {
-      if (user) {
-        logSession(user.uid, {
-          duration: Date.now() - sessionStart,
-          messageCount: messages.length,
-          language,
-        });
-      }
-    };
-  }, [user, messages.length, language, sessionStart]);
-
   return (
     <AppContext.Provider value={{
-      user, language, changeLanguage,
+      language, changeLanguage,
       messages, addMessage, clearMessages,
       isLoading, setIsLoading,
       isSpeaking, setIsSpeaking,
